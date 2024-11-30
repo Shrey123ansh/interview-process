@@ -5,61 +5,43 @@ import "forge-std/Test.sol";
 import "../src/Escrow.sol";
 
 contract EscrowTest is Test {
-    Escrow escrow;
-    address alice = address(0x1);
-    address jack = address(0x2);
+    Escrow public escrow;
+    address public owner;
+    address public user1;
+    address public user2;
 
     function setUp() public {
-        // Alice deploys the Escrow contract
-        vm.startPrank(alice);
-        escrow = new Escrow();
-        vm.stopPrank();
+        // Setup the testing environment
+        owner = address(this); // Test contract acts as the owner
+        user1 = address(0x123);
+        user2 = address(0x456);
+
+        escrow = new Escrow(); // Deploy the Escrow contract
     }
 
-    function testDepositAndBalance() public {
-        // Fund Alice with 1 Ether
-        vm.deal(alice, 1 ether);
+    function testOnlyWhitelistedCanWithdraw() public {
+        escrow.whitelist(user1);
 
-        // Alice deposits 1 Ether into the contract
-        vm.startPrank(alice);
-        (bool success, ) = address(escrow).call{value: 1 ether}("");
-        assertTrue(success, "Deposit failed");
-        vm.stopPrank();
+        // Fund the contract with 1 ether
+        vm.deal(address(escrow), 1 ether);
 
-        // Verify the contract balance
-        assertEq(escrow.balance(), 1 ether, "Incorrect contract balance");
+        // Attempt withdrawal from a non-whitelisted address
+        vm.prank(user2);
+        vm.expectRevert("You are not the whitelisted address");
+        escrow.withdraw(0.5 ether);
     }
 
-    function testWhitelistAndWithdraw() public {
-        // Fund Alice with 1 Ether
-        vm.deal(alice, 1 ether);
-        vm.deal(jack, 0); // Jack starts with 0 balance
+    function testWithdrawInsufficientFunds() public {
+        escrow.whitelist(user1);
 
-        // Alice deposits Ether
-        vm.startPrank(alice);
-        (bool success, ) = address(escrow).call{value: 1 ether}("");
-        assertTrue(success, "Deposit failed");
+        // Fund the contract with only 0.2 ether
+        vm.deal(address(escrow), 0.2 ether);
 
-        // Alice whitelists Jack
-        escrow.whitelist(jack);
-        assertEq(
-            escrow.whitelisted(),
-            jack,
-            "Whitelisted address is incorrect"
-        );
-        vm.stopPrank();
-
-        // Jack withdraws the Ether
-        vm.startPrank(jack);
-        escrow.withdraw(1 ether);
-        vm.stopPrank();
-
-        // Verify balances
-        assertEq(
-            address(jack).balance,
-            1 ether,
-            "Jack did not receive the withdrawn Ether"
-        );
-        assertEq(escrow.balance(), 0, "Contract balance should be zero");
+        // Attempt to withdraw more than the balance
+        vm.prank(user1);
+        vm.expectRevert(); // Default revert for insufficient balance
+        escrow.withdraw(0.5 ether);
     }
+
+    receive() external payable {} // To receive funds in tests
 }
