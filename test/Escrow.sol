@@ -11,21 +11,18 @@ contract EscrowTest is Test {
     address public user2;
 
     function setUp() public {
-        // Setup the testing environment
-        owner = address(this); // Test contract acts as the owner
+        owner = address(this);
         user1 = address(0x123);
         user2 = address(0x456);
 
-        escrow = new Escrow(); // Deploy the Escrow contract
+        escrow = new Escrow();
     }
 
     function testOnlyWhitelistedCanWithdraw() public {
         escrow.whitelist(user1);
 
-        // Fund the contract with 1 ether
         vm.deal(address(escrow), 1 ether);
 
-        // Attempt withdrawal from a non-whitelisted address
         vm.prank(user2);
         vm.expectRevert("You are not the whitelisted address");
         escrow.withdraw(0.5 ether);
@@ -34,14 +31,12 @@ contract EscrowTest is Test {
     function testWithdrawInsufficientFunds() public {
         escrow.whitelist(user1);
 
-        // Fund the contract with only 0.2 ether
         vm.deal(address(escrow), 0.2 ether);
 
-        // Attempt to withdraw more than the balance
         vm.prank(user1);
-        vm.expectRevert(); // Default revert for insufficient balance
+        vm.expectRevert();
         escrow.withdraw(0.5 ether);
     }
 
-    receive() external payable {} // To receive funds in tests
+    receive() external payable {}
 }
